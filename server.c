@@ -11,14 +11,34 @@ int main() {
     char buffer[4096];
     int opt = 1;
 
-    char *response =
+    const char *home_response =
         "HTTP/1.1 200 OK\r\n"
         "Content-Type: text/html\r\n"
         "\r\n"
-        "<h1>Helloww from C HTTP server yoo</h1>"
-        "<p>This server keeps running now bruh.</p>";
+        "<h1>Home Page</h1>"
+        "<p>This is a tiny C HTTP server.</p>";
 
-    // Create a TCP socket.
+    const char *about_response =
+        "HTTP/1.1 200 OK\r\n"
+        "Content-Type: text/html\r\n"
+        "\r\n"
+        "<h1>About</h1>"
+        "<p>learning file descriptors , sockets funda in  C.</p>";
+
+    const char *health_response =
+        "HTTP/1.1 200 OK\r\n"
+        "Content-Type: text/plain\r\n"
+        "\r\n"
+        "OK\n";
+
+    const char *not_found_response =
+        "HTTP/1.1 404 Not Found\r\n"
+        "Content-Type: text/html\r\n"
+        "\r\n"
+        "<h1>404 Not Found</h1>"
+        "<p>This route does not exist buddy.</p>";
+       
+   	// Create a TCP socket.
     server_fd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (server_fd == -1) {
@@ -74,11 +94,19 @@ int main() {
         buffer[n] = '\0';
 
         printf("Request from browser:\n%s\n", buffer);
+        const char *response = not_found_response;
+
+        if (strncmp(buffer, "GET / ", strlen("GET / ")) == 0) {
+            response = home_response;
+        } else if (strncmp(buffer, "GET /about ", strlen("GET /about ")) == 0) {
+            response = about_response;
+        } else if (strncmp(buffer, "GET /health ", strlen("GET /health ")) == 0) {
+            response = health_response;
+        }
 
         if (write(client_fd, response, strlen(response)) == -1) {
             perror("write");
         }
-
         close(client_fd);
 
         // Clear buffer before next request.
