@@ -4,6 +4,12 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+struct Request {
+    char method[16];
+    char path[256];
+    char version[16];
+};
+
 int main() {
     int server_fd;
     int client_fd;
@@ -37,7 +43,19 @@ int main() {
         "\r\n"
         "<h1>404 Not Found</h1>"
         "<p>This route does not exist buddy.</p>";
-       
+	    const char *bad_request_response =
+        "HTTP/1.1 400 Bad Request\r\n"
+        "Content-Type: text/html\r\n"
+        "\r\n"
+        "<h1>400 Bad request</h1>"
+        "<p>The server is dumb to understand this req.</p>";
+
+    const char *method_not_allowed_response =
+        "HTTP/1.1 405 Method Not Allowed\r\n"
+        "Content-Type: text/html\r\n"
+        "\r\n"
+        "<h1>405 Method Not allowed</h1>"
+        "<p>This mini server only supports GET requests.</p>";       
    	// Create a TCP socket.
     server_fd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -92,22 +110,39 @@ int main() {
         }
 
         buffer[n] = '\0';
-
         printf("Request from browser:\n%s\n", buffer);
+
+        struct Request req;
+
+        int parsed = sscanf(
+            buffer,
+            "%15s %255s %15s",
+            req.method,
+            req.path,
+            req.version
+        );
+
         const char *response = not_found_response;
 
-        if (strncmp(buffer, "GET / ", strlen("GET / ")) == 0) {
+        if (parsed != 3) {
+            response = bad_request_response;
+        } else if (strcmp(req.method, "GET") != 0) {
+            response = method_not_allowed_response;
+        } else if (strcmp(req.path, "/") == 0) {
             response = home_response;
-        } else if (strncmp(buffer, "GET /about ", strlen("GET /about ")) == 0) {
+        } else if (strcmp(req.path, "/about") == 0) {
             response = about_response;
-        } else if (strncmp(buffer, "GET /health ", strlen("GET /health ")) == 0) {
+        } else if (strcmp(req.path, "/health") == 0) {
             response = health_response;
         }
+
+        printf("Parsed request: method=%s path=%s version=%s\n",
+               req.method, req.path, req.version);
 
         if (write(client_fd, response, strlen(response)) == -1) {
             perror("write");
         }
-        close(client_fd);
+               close(client_fd);
 
         // Clear buffer before next request.
         memset(buffer, 0, sizeof(buffer));
